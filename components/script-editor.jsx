@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -53,7 +52,7 @@ export function ScriptEditorJsx() {
 
   const handleUpdateScene = (id, field, value) => {
     const oldScene = scriptScenes.find(scene => scene.id === id)
-    setScriptScenes(prev => prev.map(scene => 
+    setScriptScenes(prev => prev.map(scene =>
       scene.id === id ? { ...scene, [field]: value } : scene))
     addToHistory('update', { id, field, oldValue: oldScene[field], newValue: value })
   }
@@ -72,24 +71,16 @@ export function ScriptEditorJsx() {
         setScriptScenes(prev => [...prev, lastAction.data])
         break
       case 'update':
-        setScriptScenes(prev => prev.map(scene => 
-          scene.id === lastAction.data.id 
-            ? { ...scene, [lastAction.data.field]: lastAction.data.oldValue } 
+        setScriptScenes(prev => prev.map(scene =>
+          scene.id === lastAction.data.id
+            ? { ...scene, [lastAction.data.field]: lastAction.data.oldValue }
             : scene))
         break
     }
   }
 
-  const onDragEnd = (result) => {
-    if (!result.destination) return
-    const items = Array.from(scriptScenes)
-    const [reorderedItem] = items.splice(result.source.index, 1)
-    items.splice(result.destination.index, 0, reorderedItem)
-    setScriptScenes(items)
-  }
-
   return (
-    (<div className="theme-custom min-h-screen bg-background text-foreground p-4">
+    <div className="theme-custom min-h-screen bg-background text-foreground p-4">
       <div className="flex flex-col lg:flex-row gap-4">
         {/* AI Assistant Section */}
         <Card className="w-full lg:w-1/3 animate-fadeIn">
@@ -111,11 +102,10 @@ export function ScriptEditorJsx() {
                   key={index}
                   className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'} animate-messageAppear`}>
                   <span
-                    className={`inline-block p-2 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted text-muted-foreground'
-                    }`}>
+                    className={`inline-block p-2 rounded-lg ${message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                      }`}>
                     {message.content}
                   </span>
                 </div>
@@ -150,50 +140,34 @@ export function ScriptEditorJsx() {
             <CardTitle className="text-2xl font-bold text-primary">Script Scenes</CardTitle>
           </CardHeader>
           <CardContent className="h-[calc(100vh-200px)] flex flex-col">
-            <DragDropContext onDragEnd={onDragEnd}>
-              <Droppable droppableId="script-scenes">
-                {(provided) => (
-                  <ScrollArea
-                    className="flex-grow mb-4"
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}>
-                    {scriptScenes.map((scene, index) => (
-                      <Draggable key={scene.id} draggableId={scene.id} index={index}>
-                        {(provided) => (
-                          <Card
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className="mb-4 animate-sceneAppear hover:animate-scenePulse group">
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-center mb-2">
-                                <Input
-                                  value={scene.tag}
-                                  onChange={(e) => handleUpdateScene(scene.id, 'tag', e.target.value)}
-                                  className="w-1/3 text-sm font-semibold bg-secondary text-secondary-foreground border-none rounded-full px-3 py-1 animate-tagPulse"
-                                  placeholder="Tag" />
-                                <Button
-                                  onClick={() => handleDeleteScene(scene.id)}
-                                  variant="destructive"
-                                  size="icon"
-                                  className="rounded-full animate-wiggle hover:animate-none">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <Textarea
-                                value={scene.content}
-                                onChange={(e) => handleUpdateScene(scene.id, 'content', e.target.value)}
-                                className="w-full min-h-[100px] animate-textareaFocus" />
-                            </CardContent>
-                          </Card>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </ScrollArea>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <ScrollArea className="flex-grow mb-4">
+              {scriptScenes.map((scene, index) => (
+                <Card
+                  key={scene.id}
+                  className="mb-4 animate-sceneAppear hover:animate-scenePulse group">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <Input
+                        value={scene.tag}
+                        onChange={(e) => handleUpdateScene(scene.id, 'tag', e.target.value)}
+                        className="w-1/3 text-sm font-semibold bg-secondary text-secondary-foreground border-none rounded-full px-3 py-1 animate-tagPulse"
+                        placeholder="Tag" />
+                      <Button
+                        onClick={() => handleDeleteScene(scene.id)}
+                        variant="destructive"
+                        size="icon"
+                        className="rounded-full animate-wiggle hover:animate-none">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={scene.content}
+                      onChange={(e) => handleUpdateScene(scene.id, 'content', e.target.value)}
+                      className="w-full min-h-[100px] animate-textareaFocus" />
+                  </CardContent>
+                </Card>
+              ))}
+            </ScrollArea>
             <Button
               onClick={handleAddScene}
               className="self-start bg-primary text-primary-foreground hover:bg-primary/90 rounded-full animate-bounce-light">
@@ -308,16 +282,16 @@ export function ScriptEditorJsx() {
           animation: thinking 1.4s infinite ease-in-out both;
         }
       `}</style>
-    </div>)
+    </div>
   );
 }
 
 function ThinkingAnimation() {
   return (
-    (<div className="flex items-center">
+    <div className="flex items-center">
       <span className="thinking-dot"></span>
       <span className="thinking-dot"></span>
       <span className="thinking-dot"></span>
-    </div>)
+    </div>
   );
 }
