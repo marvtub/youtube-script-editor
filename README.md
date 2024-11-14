@@ -8,9 +8,11 @@ Follow along with the development process:
 
 ### Part 1: Building the Front-End
 [![Part 1: Building the Front-End](https://img.youtube.com/vi/ZadsQVk7pso/maxresdefault.jpg)](https://youtu.be/ZadsQVk7pso)
+🔗 [Watch Part 1: Building the Front-End](https://youtu.be/ZadsQVk7pso)
 
 ### Part 2: Deploying the App on Vercel
 [![Part 2: Deploying the App on Vercel](https://img.youtube.com/vi/_x3qMYC6KIA/maxresdefault.jpg)](https://youtu.be/_x3qMYC6KIA)
+🔗 [Watch Part 2: Deploying the App on Vercel](https://youtu.be/_x3qMYC6KIA)
 
 ## Features
 
