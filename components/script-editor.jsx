@@ -267,41 +267,31 @@ export function ScriptEditor() {
   };
 
   const applySceneSuggestion = () => {
-    console.log('Applying suggestion:', pendingApproval);
     if (!pendingApproval) return;
 
     const oldScene = scriptScenes.find(scene => scene.id === pendingApproval.sceneId);
-    console.log('Found old scene:', oldScene);
     if (!oldScene) return;
 
-    // Create a single update for both content and tag
     const updatedScene = {
       ...oldScene,
       content: pendingApproval.suggestion.content,
       tag: pendingApproval.suggestion.tag
     };
-    console.log('Updated scene:', updatedScene);
 
-    // Update scenes state
-    setScriptScenes(prev => {
-      const newScenes = prev.map(scene =>
+    setScriptScenes(prev =>
+      prev.map(scene =>
         scene.id === pendingApproval.sceneId ? updatedScene : scene
-      );
-      console.log('New scenes state:', newScenes);
-      return newScenes;
-    });
+      )
+    );
 
-    // Add to history
     addToHistory('update', {
       id: pendingApproval.sceneId,
       oldScene: oldScene,
       newScene: updatedScene
     });
 
-    // Clear the pending approval
     setPendingApproval(null);
 
-    // Add a confirmation message to the chat
     setMessages(prev => [...prev, {
       role: 'assistant',
       content: `I've applied the suggested changes to the scene "${oldScene.tag}". Let me know if you'd like to make any other improvements!`
@@ -310,10 +300,7 @@ export function ScriptEditor() {
 
   const handleAIEdit = async (sceneId, content) => {
     const originalScene = scriptScenes.find(scene => scene.id === sceneId);
-    if (!originalScene) {
-      console.error('Original scene not found:', sceneId);
-      return;
-    }
+    if (!originalScene) return;
 
     try {
       const response = await fetch('/api/edit', {
@@ -327,8 +314,6 @@ export function ScriptEditor() {
       });
 
       const data = await response.json();
-      console.log('Received edit response:', data);
-
       setPendingApproval({
         sceneId: sceneId,
         original: originalScene,
@@ -339,7 +324,7 @@ export function ScriptEditor() {
         }
       });
     } catch (error) {
-      console.error('Error in handleAIEdit:', error);
+      // Handle error appropriately
     }
   };
 
