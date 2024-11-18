@@ -6,6 +6,14 @@ const openai = new OpenAI({
 
 export async function POST(request) {
   try {
+    const betaKey = request.headers.get('x-beta-key');
+    if (betaKey !== process.env.NEXT_PUBLIC_BETA_KEY) {
+      return new Response(JSON.stringify({ error: 'Beta access required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const { sceneId, originalContent, originalTag, userPrompt } = await request.json();
     
     const systemMessage = {

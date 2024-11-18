@@ -64,7 +64,10 @@ export function ScriptEditor() {
 
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-beta-key': process.env.NEXT_PUBLIC_BETA_KEY
+        },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           referencedScenes: referencedScenes
@@ -305,7 +308,10 @@ export function ScriptEditor() {
     try {
       const response = await fetch('/api/edit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-beta-key': process.env.NEXT_PUBLIC_BETA_KEY
+        },
         body: JSON.stringify({
           sceneId: originalScene.id,
           originalContent: originalScene.content,
