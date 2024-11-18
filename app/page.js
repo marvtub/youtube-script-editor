@@ -1,9 +1,9 @@
-import { ScriptEditorJsx } from "@/components/script-editor";
+import { ScriptEditor } from "@/components/script-editor";
 
 export default function Home() {
   return (
-    <div className="min-h-screen">
-      <ScriptEditorJsx />
-    </div>
+    <main className="min-h-screen">
+      <ScriptEditor />
+    </main>
   );
 }

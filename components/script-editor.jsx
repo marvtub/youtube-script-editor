@@ -1,45 +1,158 @@
 'use client'
 
 import * as React from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Send, Plus, Trash2, Undo2 } from 'lucide-react'
+import { ChatSection } from './chat-section'
+import { SceneSection } from './scene-section'
+import { SceneSuggestionDialog } from './scene-suggestion-dialog'
 
-export function ScriptEditorJsx() {
+export function ScriptEditor() {
   const [messages, setMessages] = React.useState([
-    { role: 'assistant', content: 'Hello! I\'m your AI assistant. How can I help you with your video intro script?' },
+    {
+      role: 'assistant',
+      content: 'Hello! I\'m your AI assistant. I can help edit your video script scenes. Just reference a scene using @ and I\'ll suggest improvements!'
+    },
   ])
   const [input, setInput] = React.useState('')
   const [scriptScenes, setScriptScenes] = React.useState([
-    { id: 'scene1', content: 'Welcome to our channel!', tag: 'Intro' },
-    { id: 'scene2', content: 'In this video, we\'ll be exploring...', tag: 'Topic' },
-    { id: 'scene3', content: 'Don\'t forget to like and subscribe!', tag: 'Outro' },
+    { id: crypto.randomUUID(), content: 'Welcome to our channel!', tag: 'Intro' },
+    { id: crypto.randomUUID(), content: 'In this video, we\'ll be exploring...', tag: 'Topic' },
+    { id: crypto.randomUUID(), content: 'Don\'t forget to like and subscribe!', tag: 'Outro' },
   ])
   const [history, setHistory] = React.useState([])
   const [isThinking, setIsThinking] = React.useState(false)
+  const [showMentions, setShowMentions] = React.useState(false)
+  const [mentionSearch, setMentionSearch] = React.useState('')
+  const [cursorPosition, setCursorPosition] = React.useState(0)
+  const [messageContexts, setMessageContexts] = React.useState({})
+  const [sceneSuggestions, setSceneSuggestions] = React.useState({})
+  const [pendingApproval, setPendingApproval] = React.useState(null)
 
   const addToHistory = (action, data) => {
     setHistory(prev => [...prev, { action, data }])
   }
 
-  const handleSendMessage = () => {
-    if (input.trim()) {
-      setMessages([...messages, { role: 'user', content: input }])
-      setInput('')
-      setIsThinking(true)
-      // Simulate AI response delay
-      setTimeout(() => {
-        setMessages(prev => [...prev, { role: 'assistant', content: `You said: ${input}` }])
-        setIsThinking(false)
-      }, 2000)
+  const handleSendMessage = async () => {
+    if (!input.trim()) return;
+
+    let fullContent = input;
+    const referencedScenes = [];
+
+    // Collect referenced scenes
+    Object.entries(messageContexts).forEach(([display, context]) => {
+      fullContent = fullContent.replace(display, context.fullText);
+      const scene = scriptScenes.find(s => s.id === context.sceneId);
+      if (scene) {
+        referencedScenes.push({
+          id: scene.id,
+          content: scene.content,
+          tag: scene.tag,
+          display: display
+        });
+      }
+    });
+
+    const userMessage = { role: 'user', content: fullContent };
+    const displayMessage = { role: 'user', content: input };
+
+    setMessages(prev => [...prev, displayMessage]);
+    setInput('');
+    setIsThinking(true);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          referencedScenes: referencedScenes
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get response stream');
+      }
+
+      const decoder = new TextDecoder();
+      let assistantMessage = { role: 'assistant', content: '' };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        console.log('Received chunk in frontend:', chunk);
+
+        try {
+          // Only try to parse as JSON if it starts with {
+          if (chunk.trim().startsWith('{')) {
+            const parsedChunk = JSON.parse(chunk);
+            console.log('Parsed chunk:', parsedChunk);
+
+            if (parsedChunk.type === 'suggestion') {
+              console.log('Setting pending approval:', parsedChunk.content);
+              setPendingApproval(parsedChunk.content);
+            }
+          } else {
+            // Regular text response
+            assistantMessage.content += chunk;
+            setMessages(prev => [
+              ...prev.slice(0, -1),
+              { ...assistantMessage }
+            ]);
+          }
+        } catch (error) {
+          console.log('Parse error:', error);
+          // If parsing fails, treat as regular text
+          assistantMessage.content += chunk;
+          setMessages(prev => [
+            ...prev.slice(0, -1),
+            { ...assistantMessage }
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      let errorMessage = "I apologize, but I encountered an error. ";
+
+      if (error.name === 'AbortError') {
+        errorMessage += "The request timed out. Please try again.";
+      } else if (!window.navigator.onLine) {
+        errorMessage += "You appear to be offline. Please check your internet connection.";
+      } else if (error.message.includes('Server error')) {
+        errorMessage += "The server is having issues. Please try again in a moment.";
+      } else {
+        errorMessage += "Something unexpected happened. Please try again.";
+      }
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: errorMessage
+      }]);
+    } finally {
+      setIsThinking(false);
+      setMessageContexts({});
     }
-  }
+  };
 
   const handleAddScene = () => {
-    const newScene = { id: `scene${scriptScenes.length + 1}`, content: 'New scene content', tag: 'Custom' }
+    const newScene = {
+      id: crypto.randomUUID(),
+      content: 'New scene content',
+      tag: 'Custom'
+    }
     setScriptScenes(prev => [...prev, newScene])
     addToHistory('add', newScene)
   }
@@ -51,141 +164,214 @@ export function ScriptEditorJsx() {
   }
 
   const handleUpdateScene = (id, field, value) => {
-    const oldScene = scriptScenes.find(scene => scene.id === id)
-    setScriptScenes(prev => prev.map(scene =>
-      scene.id === id ? { ...scene, [field]: value } : scene))
-    addToHistory('update', { id, field, oldValue: oldScene[field], newValue: value })
-  }
+    setScriptScenes(prev => {
+      const newScenes = prev.map(scene =>
+        scene.id === id ? { ...scene, [field]: value } : scene
+      );
+      return newScenes;
+    });
+
+    // If the tag was updated, we need to update messageContexts
+    if (field === 'tag') {
+      setMessageContexts(prev => {
+        const newContexts = {};
+        Object.entries(prev).forEach(([key, context]) => {
+          if (context.sceneId === id) {
+            // Create new key with updated tag
+            const newKey = `@[${value}]`;
+            newContexts[newKey] = {
+              ...context,
+              display: value,
+              fullText: `Scene "${value}": "${context.content}"`
+            };
+          } else {
+            newContexts[key] = context;
+          }
+        });
+        return newContexts;
+      });
+    }
+  };
 
   const handleUndo = () => {
-    if (history.length === 0) return
+    if (history.length === 0) return;
 
-    const lastAction = history[history.length - 1]
-    setHistory(prev => prev.slice(0, -1))
+    const lastAction = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
 
     switch (lastAction.action) {
       case 'add':
-        setScriptScenes(prev => prev.filter(scene => scene.id !== lastAction.data.id))
-        break
+        setScriptScenes(prev => prev.filter(scene => scene.id !== lastAction.data.id));
+        break;
       case 'delete':
-        setScriptScenes(prev => [...prev, lastAction.data])
-        break
+        setScriptScenes(prev => [...prev, lastAction.data]);
+        break;
       case 'update':
         setScriptScenes(prev => prev.map(scene =>
-          scene.id === lastAction.data.id
-            ? { ...scene, [lastAction.data.field]: lastAction.data.oldValue }
-            : scene))
-        break
+          scene.id === lastAction.data.id ? lastAction.data.oldScene : scene
+        ));
+        break;
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInput(value);
+
+    if (e.mentions) {
+      setMessageContexts(e.mentions);
+    }
+
+    // Get cursor position
+    const curPos = e.target.selectionStart;
+    setCursorPosition(curPos);
+
+    // Check for @ symbol
+    const lastAtSymbol = value.lastIndexOf('@', curPos);
+    if (lastAtSymbol !== -1 && lastAtSymbol < curPos) {
+      const searchText = value.slice(lastAtSymbol + 1, curPos).toLowerCase();
+      setMentionSearch(searchText);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
     }
   }
 
-  return (
-    <div className="theme-custom min-h-screen bg-background text-foreground p-4">
-      <div className="flex flex-col lg:flex-row gap-4">
-        {/* AI Assistant Section */}
-        <Card className="w-full lg:w-1/3 animate-fadeIn">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-2xl font-bold text-primary">AI Assistant</CardTitle>
-            <Button
-              onClick={handleUndo}
-              disabled={history.length === 0}
-              variant="outline"
-              size="icon"
-              className="rounded-full">
-              <Undo2 className="h-4 w-4" />
-            </Button>
-          </CardHeader>
-          <CardContent className="flex flex-col h-[calc(100vh-200px)]">
-            <ScrollArea className="flex-grow mb-4 border border-border rounded-lg p-2">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`mb-2 ${message.role === 'user' ? 'text-right' : 'text-left'} animate-messageAppear`}>
-                  <span
-                    className={`inline-block p-2 rounded-lg ${message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                      }`}>
-                    {message.content}
-                  </span>
-                </div>
-              ))}
-              {isThinking && (
-                <div className="text-left animate-messageAppear">
-                  <span className="inline-block p-2 rounded-lg bg-muted text-muted-foreground">
-                    <ThinkingAnimation />
-                  </span>
-                </div>
-              )}
-            </ScrollArea>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="flex-grow animate-pulse-border focus:animate-none" />
-              <Button
-                onClick={handleSendMessage}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 animate-bounce-light">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+  const insertSceneReference = (scene) => {
+    const display = `@[${scene.tag}]`
+    const lastAtIndex = input.lastIndexOf('@', cursorPosition)
+    const before = input.slice(0, lastAtIndex)
+    const after = input.slice(cursorPosition)
 
-        {/* Script Editor Section */}
-        <Card className="w-full lg:w-2/3 animate-fadeIn">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-primary">Script Scenes</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[calc(100vh-200px)] flex flex-col">
-            <ScrollArea className="flex-grow mb-4">
-              {scriptScenes.map((scene, index) => (
-                <Card
-                  key={scene.id}
-                  className="mb-4 animate-sceneAppear hover:animate-scenePulse group">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <Input
-                        value={scene.tag}
-                        onChange={(e) => handleUpdateScene(scene.id, 'tag', e.target.value)}
-                        className="w-1/3 text-sm font-semibold bg-secondary text-secondary-foreground border-none rounded-full px-3 py-1 animate-tagPulse"
-                        placeholder="Tag" />
-                      <Button
-                        onClick={() => handleDeleteScene(scene.id)}
-                        variant="destructive"
-                        size="icon"
-                        className="rounded-full animate-wiggle hover:animate-none">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={scene.content}
-                      onChange={(e) => handleUpdateScene(scene.id, 'content', e.target.value)}
-                      className="w-full min-h-[100px] animate-textareaFocus" />
-                  </CardContent>
-                </Card>
-              ))}
-            </ScrollArea>
-            <Button
-              onClick={handleAddScene}
-              className="self-start bg-primary text-primary-foreground hover:bg-primary/90 rounded-full animate-bounce-light">
-              <Plus className="h-4 w-4 mr-2" /> Add Scene
-            </Button>
-          </CardContent>
-        </Card>
+    setMessageContexts(prev => ({
+      ...prev,
+      [display]: {
+        sceneId: scene.id,
+        fullText: `Scene "${scene.tag}": "${scene.content}"`
+      }
+    }))
+
+    setInput(before + display + after)
+    setShowMentions(false)
+  }
+
+  const handleSceneSuggestion = (sceneId, suggestion) => {
+    const originalScene = scriptScenes.find(scene => scene.id === sceneId);
+    if (!originalScene) return;
+
+    setPendingApproval({
+      sceneId,
+      original: originalScene,
+      suggestion: suggestion
+    });
+  };
+
+  const applySceneSuggestion = () => {
+    console.log('Applying suggestion:', pendingApproval);
+    if (!pendingApproval) return;
+
+    const oldScene = scriptScenes.find(scene => scene.id === pendingApproval.sceneId);
+    console.log('Found old scene:', oldScene);
+    if (!oldScene) return;
+
+    // Create a single update for both content and tag
+    const updatedScene = {
+      ...oldScene,
+      content: pendingApproval.suggestion.content,
+      tag: pendingApproval.suggestion.tag
+    };
+    console.log('Updated scene:', updatedScene);
+
+    // Update scenes state
+    setScriptScenes(prev => {
+      const newScenes = prev.map(scene =>
+        scene.id === pendingApproval.sceneId ? updatedScene : scene
+      );
+      console.log('New scenes state:', newScenes);
+      return newScenes;
+    });
+
+    // Add to history
+    addToHistory('update', {
+      id: pendingApproval.sceneId,
+      oldScene: oldScene,
+      newScene: updatedScene
+    });
+
+    // Clear the pending approval
+    setPendingApproval(null);
+
+    // Add a confirmation message to the chat
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `I've applied the suggested changes to the scene "${oldScene.tag}". Let me know if you'd like to make any other improvements!`
+    }]);
+  };
+
+  const handleAIEdit = async (sceneId, content) => {
+    const originalScene = scriptScenes.find(scene => scene.id === sceneId);
+    if (!originalScene) {
+      console.error('Original scene not found:', sceneId);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sceneId: originalScene.id,
+          originalContent: originalScene.content,
+          originalTag: originalScene.tag
+        })
+      });
+
+      const data = await response.json();
+      console.log('Received edit response:', data);
+
+      setPendingApproval({
+        sceneId: sceneId,
+        original: originalScene,
+        suggestion: {
+          content: data.content,
+          tag: data.tag,
+          reasoning: data.reasoning
+        }
+      });
+    } catch (error) {
+      console.error('Error in handleAIEdit:', error);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col lg:flex-row gap-4 p-4">
+        <ChatSection
+          messages={messages}
+          input={input}
+          isThinking={isThinking}
+          showMentions={showMentions}
+          scriptScenes={scriptScenes}
+          mentionSearch={mentionSearch}
+          messageContexts={messageContexts}
+          onInputChange={handleInputChange}
+          onSendMessage={handleSendMessage}
+          onSceneSelect={insertSceneReference}
+        />
+        <SceneSection
+          scriptScenes={scriptScenes}
+          onAddScene={handleAddScene}
+          onDeleteScene={handleDeleteScene}
+          onUpdateScene={handleUpdateScene}
+        />
       </div>
+      {pendingApproval && (
+        <SceneSuggestionDialog
+          suggestion={pendingApproval}
+          onApprove={applySceneSuggestion}
+          onDismiss={() => setPendingApproval(null)}
+        />
+      )}
     </div>
-  );
-}
-
-function ThinkingAnimation() {
-  return (
-    <div className="flex items-center">
-      <span className="thinking-dot"></span>
-      <span className="thinking-dot"></span>
-      <span className="thinking-dot"></span>
-    </div>
-  );
+  )
 }
