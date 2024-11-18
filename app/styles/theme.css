@@ -1,0 +1,22 @@
+:root {
+  --gradient: #FD8112;
+  --background: 30 63.699999999999996% 4.24%;
+  --foreground: 30 9.8% 97.65%;
+  --muted: 30 49% 15.9%;
+  --muted-foreground: 30 9.8% 55.3%;
+  --popover: 30 45.4% 6.890000000000001%;
+  --popover-foreground: 30 9.8% 97.65%;
+  --card: 30 45.4% 6.890000000000001%;
+  --card-foreground: 30 9.8% 97.65%;
+  --border: 30 49% 15.9%;
+  --input: 30 49% 15.9%;
+  --primary: 30 98% 53%;
+  --primary-foreground: 30 9.8% 5.300000000000001%;
+  --secondary: 30 49% 15.9%;
+  --secondary-foreground: 30 9.8% 97.65%;
+  --accent: 30 49% 15.9%;
+  --accent-foreground: 30 9.8% 97.65%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 30 9.8% 97.65%;
+  --ring: 30 98% 53%;
+}

@@ -1,0 +1,58 @@
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-messageAppear {
+  animation: messageAppear 0.3s ease-out;
+}
+
+.animate-sceneAppear {
+  animation: sceneAppear 0.3s ease-out;
+}
+
+.animate-scenePulse:hover {
+  animation: scenePulse 2s infinite;
+}
+
+.animate-tagPulse {
+  animation: tagPulse 2s infinite;
+}
+
+.animate-wiggle:hover {
+  animation: wiggle 0.3s ease-in-out;
+}
+
+.animate-bounce-light:hover {
+  animation: bounceLight 0.6s infinite;
+}
+
+.animate-pulse-border:focus {
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+.animate-textareaFocus:focus {
+  transform: scale(1.01);
+}
+
+.thinking-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  margin: 0 2px;
+}
+
+.thinking-dot:nth-child(1) {
+  animation: thinking 1.4s infinite ease-in-out both;
+  animation-delay: -0.32s;
+}
+
+.thinking-dot:nth-child(2) {
+  animation: thinking 1.4s infinite ease-in-out both;
+  animation-delay: -0.16s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation: thinking 1.4s infinite ease-in-out both;
+}
